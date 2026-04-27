@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureZone Threat Detection Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e2f;
+      color: #f1f1f1;
+      padding: 20px;
+    }
+    h1 {
+      color: #00d8ff;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px 0;
+      background-color: #00d8ff;
+      color: black;
+      border: none;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+    pre {
+      background-color: #2e2e3e;
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    #listeningStatus {
+      margin-top: 10px;
+      color: #00ff88;
+    }
+    .loading {
+      color: #ffcc00;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔐 SecureZone Threat Detection Tool</h1>
+
+  <button onclick="runScan()">Run Threat Detection</button>
+  <pre id="output">Click the button or say "Abhi scan" to start scanning...</pre>
+
+  <button onclick="downloadScan()">Download Scan Result</button>
+
+  <div id="listeningStatus">🎙 Listening for "Abhi scan"...</div>
+
+  <script>
+    let scanCompleted = false;  // Flag to track scan status
+
+    function runScan() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<span class="loading">🔄 Scanning... Please wait...</span>';
+      
+      fetch('/run-scan')
+        .then(response => response.text())
+        .then(data => {
+          output.textContent = data;
+          scanCompleted = true; // Mark scan as completed
+          abhiSpeak("Scan completed! Say 'Abhi download' to download the result.");
+        });
+    }
+
+    function downloadScan() {
+      if (scanCompleted) {
+        fetch('/run-scan')
+          .then(response => response.blob())
+          .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'scan_result.txt';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          });
+      } else {
+        abhiSpeak("The scan isn't finished yet. Please say 'Abhi scan' to start.");
+      }
+    }
+
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.lang = 'en-US';
+
+    function abhiSpeak(message) {
+      const speech = new SpeechSynthesisUtterance(message);
+      speech.lang = 'en-US';
+      speech.rate = 0.9;
+      speech.pitch = 1;
+      window.speechSynthesis.speak(speech);
+    }
+
+    const abhiSuccessReplies = [
+      "Starting the scan now.",
+      "Okay, running the scan for threats.",
+      "Initiating system scan. Please wait.",
+      "Got it! Scanning your system now.",
+      "Scanning in progress. Sit tight."
+    ];
+
+    const abhiErrorReplies = [
+      "Sorry, I didn't understand. Please say 'Abhi scan' to start.",
+      "I didn't get that. Can you repeat 'Abhi scan'?",
+      "Please repeat. Say 'Abhi scan' to begin scanning."
+    ];
+
+    function getRandomReply(arr) {
+      const index = Math.floor(Math.random() * arr.length);
+      return arr[index];
+    }
+
+    recognition.onresult = function(event) {
+      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      console.log('Heard:', transcript);
+      
+      if (transcript.includes('abhi') && transcript.includes('scan')) {
+        const successReply = getRandomReply(abhiSuccessReplies);
+        abhiSpeak(successReply);
+        runScan();
+      } else if (transcript.includes('abhi') && transcript.includes('download')) {
+        downloadScan();  // Trigger download
+      } else {
+        const errorReply = getRandomReply(abhiErrorReplies);
+        abhiSpeak(errorReply);
+      }
+    }
+
+    recognition.onerror = function(event) {
+      console.error('Speech recognition error', event);
+      document.getElementById('listeningStatus').textContent = '🎙 Error: Restarting listening...';
+      recognition.start();
+    }
+
+    recognition.onend = function() {
+      document.getElementById('listeningStatus').textContent = '🎙 Listening for "Abhi scan"...';
+      recognition.start();
+    }
+
+    recognition.start();
+  </script>
+</body>
+</html>
